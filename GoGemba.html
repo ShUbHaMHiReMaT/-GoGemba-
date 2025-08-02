@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoGemba - Digital Gemba Walk</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        accent: '#F59E0B',
+                        danger: '#EF4444'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .modal-enter {
+            animation: modalEnter 0.3s ease-out;
+        }
+        .modal-exit {
+            animation: modalExit 0.3s ease-in;
+        }
+        @keyframes modalEnter {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes modalExit {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0; transform: scale(0.9); }
+        }
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <!-- Header with Clock -->
+    <header class="bg-gray-800 shadow-lg p-4 sticky top-0 z-40">
+        <div class="flex justify-between items-center max-w-4xl mx-auto">
+            <h1 class="text-xl font-bold text-primary">GoGemba</h1>
+            <div id="clock" class="text-sm text-gray-300"></div>
+        </div>
+    </header>
+
+    <!-- Walk Management Screen -->
+    <div id="walkManagementScreen" class="screen active">
+        <div class="max-w-4xl mx-auto p-4">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Gemba Walks</h2>
+                <div class="flex gap-2">
+                    <input type="text" id="searchWalks" placeholder="Search walks..." 
+                           class="px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                    <button onclick="showNewWalkModal()" 
+                            class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                        Start New Walk
+                    </button>
+                </div>
+            </div>
+
+            <!-- Past Walks List -->
+            <div id="walksList" class="space-y-4">
+                <!-- Walks will be rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Walk Screen -->
+    <div id="activeWalkScreen" class="screen">
+        <div class="max-w-4xl mx-auto p-4">
+            <!-- Walk Header -->
+            <div class="bg-gray-800 rounded-lg p-4 mb-6">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <h2 id="activeWalkTitle" class="text-xl font-bold"></h2>
+                        <p id="activeWalkTemplate" class="text-gray-400 text-sm"></p>
+                    </div>
+                    <button onclick="showEndWalkSummary()" 
+                            class="bg-danger hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                        End Walk
+                    </button>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="flex-1 bg-gray-700 rounded-full h-2">
+                        <div id="progressBar" class="bg-secondary h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <span id="progressText" class="text-sm text-gray-300">0% Complete</span>
+                </div>
+            </div>
+
+            <!-- Checklist Items -->
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold mb-4">Checklist Items</h3>
+                <div id="checklistItems" class="space-y-3">
+                    <!-- Checklist items will be rendered here -->
+                </div>
+            </div>
+
+            <!-- Add Observation Button -->
+            <button onclick="showAddObservationModal()" 
+                    class="w-full bg-accent hover:bg-yellow-600 text-white py-3 rounded-lg font-medium mb-6 transition-colors">
+                + Add Observation
+            </button>
+
+            <!-- Observations List -->
+            <div>
+                <h3 class="text-lg font-semibold mb-4">Observations</h3>
+                <div id="observationsList" class="space-y-4">
+                    <!-- Observations will be rendered here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Walk Modal -->
+    <div id="newWalkModal" class="modal">
+        <div class="modal-backdrop" onclick="hideNewWalkModal()"></div>
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">Start New Walk</h3>
+                <button onclick="hideNewWalkModal()" class="text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <form id="newWalkForm" onsubmit="startNewWalk(event)">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2">Walk Title</label>
+                    <input type="text" id="walkTitle" 
+                           class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                           placeholder="e.g., Line 3 - Afternoon Shift">
+                    <div id="walkTitleError" class="text-danger text-sm mt-1 hidden">Walk title is required</div>
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-medium mb-2">Checklist Template</label>
+                    <select id="checklistTemplate" 
+                            class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                        <option value="">Select a template</option>
+                        <option value="safety">Safety Audit</option>
+                        <option value="5s">5S Check</option>
+                        <option value="standardWork">Standard Work Review</option>
+                    </select>
+                    <div id="templateError" class="text-danger text-sm mt-1 hidden">Please select a template</div>
+                </div>
+                
+                <button type="submit" 
+                        class="w-full bg-primary hover:bg-blue-600 text-white py-3 rounded-lg font-medium transition-colors">
+                    Begin Walk
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Observation Modal -->
+    <div id="addObservationModal" class="modal">
+        <div class="modal-backdrop" onclick="hideAddObservationModal()"></div>
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">Add Observation</h3>
+                <button onclick="hideAddObservationModal()" class="text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <form id="observationForm" onsubmit="saveObservation(event)">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2">Category</label>
+                    <select id="observationCategory" 
+                            class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                        <option value="">Select category</option>
+                        <option value="safety">Safety</option>
+                        <option value="quality">Quality</option>
+                        <option value="productivity">Productivity</option>
+                        <option value="waste">Waste</option>
+                    </select>
+                    <div id="categoryError" class="text-danger text-sm mt-1 hidden">Please select a category</div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2">Notes</label>
+                    <textarea id="observationNotes" rows="4" 
+                              class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                              placeholder="Describe your observation..."></textarea>
+                    <div id="notesError" class="text-danger text-sm mt-1 hidden">Notes are required</div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2">Attach File</label>
+                    <input type="file" id="observationFile" accept="image/*,video/*"
+                           class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                </div>
+                
+                <div class="mb-6">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="createActionItem" class="mr-2">
+                        <span class="text-sm">Create Action Item</span>
+                    </label>
+                </div>
+                
+                <button type="submit" 
+                        class="w-full bg-secondary hover:bg-green-600 text-white py-3 rounded-lg font-medium transition-colors">
+                    Save Observation
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Walk Summary Modal -->
+    <div id="walkSummaryModal" class="modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold mb-2">Walk Complete!</h3>
+                <p class="text-gray-400">Here's your walk summary</p>
+            </div>
+            
+            <div class="space-y-4 mb-6">
+                <div class="flex justify-between items-center p-3 bg-gray-800 rounded-lg">
+                    <span>Checklist Items Passed</span>
+                    <span id="summaryChecklistPassed" class="font-bold text-secondary">0/0</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-gray-800 rounded-lg">
+                    <span>Total Observations</span>
+                    <span id="summaryObservations" class="font-bold text-accent">0</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-gray-800 rounded-lg">
+                    <span>Action Items Created</span>
+                    <span id="summaryActionItems" class="font-bold text-primary">0</span>
+                </div>
+            </div>
+            
+            <button onclick="finishWalk()" 
+                    class="w-full bg-primary hover:bg-blue-600 text-white py-3 rounded-lg font-medium transition-colors">
+                Finish Walk
+            </button>
+        </div>
+    </div>
+
+    <!-- Success Toast -->
+    <div id="successToast" class="toast">
+        <div class="flex items-center">
+            <div class="w-6 h-6 bg-secondary rounded-full flex items-center justify-center mr-3">
+                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            <span id="toastMessage">Success!</span>
+        </div>
+    </div>
+
+    <script>
+        // Application State
+        let appState = {
+            walks: [
+                {
+                    id: 1,
+                    title: "Assembly Line - Morning",
+                    template: "Safety Audit",
+                    date: new Date(Date.now() - 86400000).toISOString(),
+                    status: "completed",
+                    observations: 3,
+                    checklistPassed: 8,
+                    checklistTotal: 10
+                },
+                {
+                    id: 2,
+                    title: "Warehouse Area",
+                    template: "5S Check",
+                    date: new Date(Date.now() - 172800000).toISOString(),
+                    status: "completed",
+                    observations: 2,
+                    checklistPassed: 12,
+                    checklistTotal: 15
+                }
+            ],
+            currentWalk: null,
+            currentObservations: [],
+            checklistTemplates: {
+                safety: [
+                    "Personal protective equipment is worn correctly",
+                    "Emergency exits are clearly marked and unobstructed",
+                    "Safety guards are in place on machinery",
+                    "Spill cleanup materials are readily available",
+                    "First aid kit is accessible and stocked",
+                    "Safety signage is visible and up to date",
+                    "Work area lighting is adequate",
+                    "Walkways are clear of obstacles"
+                ],
+                "5s": [
+                    "Work area is organized and clutter-free",
+                    "Tools are in designated locations",
+                    "Unnecessary items have been removed",
+                    "Cleaning supplies are available and used",
+                    "Visual management systems are in place",
+                    "Standard work instructions are posted",
+                    "Equipment is clean and well-maintained",
+                    "Storage areas are labeled clearly"
+                ],
+                standardWork: [
+                    "Standard operating procedures are followed",
+                    "Work sequence matches documented process",
+                    "Cycle time is within standard range",
+                    "Quality checks are performed at correct intervals",
+                    "Materials are positioned for efficient access",
+                    "Operator follows ergonomic practices",
+                    "Documentation is complete and accurate",
+                    "Continuous improvement suggestions are captured"
+                ]
+            }
+        };
+
+        // Utility Functions
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function showModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.add('active');
+            modal.querySelector('.modal-content').classList.add('modal-enter');
+        }
+
+        function hideModal(modalId) {
+            const modal = document.getElementById(modalId);
+            const content = modal.querySelector('.modal-content');
+            content.classList.remove('modal-enter');
+            content.classList.add('modal-exit');
+            setTimeout(() => {
+                modal.classList.remove('active');
+                content.classList.remove('modal-exit');
+            }, 300);
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('successToast');
+            document.getElementById('toastMessage').textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+
+        function getTimeAgo(dateString) {
+            const now = new Date();
+            const date = new Date(dateString);
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins} minutes ago`;
+            if (diffMins < 1440) return `${Math.floor(diffMins / 60)} hours ago`;
+            return `${Math.floor(diffMins / 1440)} days ago`;
+        }
+
+        // Clock Update
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').textContent = now.toLocaleTimeString();
+        }
+
+        // Walk Management Functions
+        function renderWalksList() {
+            const walksList = document.getElementById('walksList');
+            const searchTerm = document.getElementById('searchWalks').value.toLowerCase();
+            
+            const filteredWalks = appState.walks.filter(walk => 
+                walk.title.toLowerCase().includes(searchTerm) ||
+                walk.template.toLowerCase().includes(searchTerm)
+            );
+
+            walksList.innerHTML = filteredWalks.map(walk => `
+                <div class="bg-gray-800 rounded-lg p-4 hover:bg-gray-750 transition-colors">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <h3 class="font-semibold">${walk.title}</h3>
+                            <p class="text-sm text-gray-400">${walk.template}</p>
+                        </div>
+                        <span class="bg-secondary text-white text-xs px-2 py-1 rounded-full">
+                            ✅ Completed
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm text-gray-400">
+                        <span>${formatDate(walk.date)}</span>
+                        <div class="flex gap-4">
+                            <span>${walk.observations} observations</span>
+                            <span>${walk.checklistPassed}/${walk.checklistTotal} passed</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // New Walk Modal Functions
+        function showNewWalkModal() {
+            showModal('newWalkModal');
+            document.getElementById('newWalkForm').reset();
+            clearFormErrors();
+        }
+
+        function hideNewWalkModal() {
+            hideModal('newWalkModal');
+        }
+
+        function clearFormErrors() {
+            document.querySelectorAll('.text-danger').forEach(error => {
+                error.classList.add('hidden');
+            });
+        }
+
+        function validateNewWalkForm() {
+            let isValid = true;
+            clearFormErrors();
+
+            const title = document.getElementById('walkTitle').value.trim();
+            const template = document.getElementById('checklistTemplate').value;
+
+            if (!title) {
+                document.getElementById('walkTitleError').classList.remove('hidden');
+                isValid = false;
+            }
+
+            if (!template) {
+                document.getElementById('templateError').classList.remove('hidden');
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        function startNewWalk(event) {
+            event.preventDefault();
+            
+            if (!validateNewWalkForm()) return;
+
+            const title = document.getElementById('walkTitle').value.trim();
+            const template = document.getElementById('checklistTemplate').value;
+            const templateName = document.getElementById('checklistTemplate').selectedOptions[0].text;
+
+            appState.currentWalk = {
+                id: Date.now(),
+                title: title,
+                template: templateName,
+                templateKey: template,
+                startTime: new Date().toISOString(),
+                checklist: appState.checklistTemplates[template].map((item, index) => ({
+                    id: index,
+                    text: item,
+                    status: null
+                }))
+            };
+
+            appState.currentObservations = [];
+            
+            hideNewWalkModal();
+            showActiveWalk();
+            showToast('Walk started successfully!');
+        }
+
+        // Active Walk Functions
+        function showActiveWalk() {
+            showScreen('activeWalkScreen');
+            document.getElementById('activeWalkTitle').textContent = appState.currentWalk.title;
+            document.getElementById('activeWalkTemplate').textContent = appState.currentWalk.template;
+            renderChecklist();
+            renderObservations();
+            updateProgress();
+        }
+
+        function renderChecklist() {
+            const checklistItems = document.getElementById('checklistItems');
+            checklistItems.innerHTML = appState.currentWalk.checklist.map(item => `
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="mb-3">${item.text}</p>
+                    <div class="flex gap-2">
+                        <button onclick="updateChecklistItem(${item.id}, 'pass')" 
+                                class="flex-1 py-2 rounded-lg font-medium transition-colors ${
+                                    item.status === 'pass' 
+                                        ? 'bg-secondary text-white' 
+                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                }">
+                            ✅ Pass
+                        </button>
+                        <button onclick="updateChecklistItem(${item.id}, 'fail')" 
+                                class="flex-1 py-2 rounded-lg font-medium transition-colors ${
+                                    item.status === 'fail' 
+                                        ? 'bg-danger text-white' 
+                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                }">
+                            ❌ Fail
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateChecklistItem(itemId, status) {
+            const item = appState.currentWalk.checklist.find(item => item.id === itemId);
+            item.status = status;
+            renderChecklist();
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const total = appState.currentWalk.checklist.length;
+            const completed = appState.currentWalk.checklist.filter(item => item.status !== null).length;
+            const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+            
+            document.getElementById('progressBar').style.width = `${percentage}%`;
+            document.getElementById('progressText').textContent = `${percentage}% Complete`;
+        }
+
+        // Observation Functions
+        function showAddObservationModal() {
+            showModal('addObservationModal');
+            document.getElementById('observationForm').reset();
+            clearFormErrors();
+        }
+
+        function hideAddObservationModal() {
+            hideModal('addObservationModal');
+        }
+
+        function validateObservationForm() {
+            let isValid = true;
+            clearFormErrors();
+
+            const category = document.getElementById('observationCategory').value;
+            const notes = document.getElementById('observationNotes').value.trim();
+
+            if (!category) {
+                document.getElementById('categoryError').classList.remove('hidden');
+                isValid = false;
+            }
+
+            if (!notes) {
+                document.getElementById('notesError').classList.remove('hidden');
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        function saveObservation(event) {
+            event.preventDefault();
+            
+            if (!validateObservationForm()) return;
+
+            const category = document.getElementById('observationCategory').value;
+            const notes = document.getElementById('observationNotes').value.trim();
+            const file = document.getElementById('observationFile').files[0];
+            const createActionItem = document.getElementById('createActionItem').checked;
+
+            const observation = {
+                id: Date.now(),
+                category: category,
+                notes: notes,
+                file: file ? file.name : null,
+                actionItem: createActionItem,
+                timestamp: new Date().toISOString()
+            };
+
+            appState.currentObservations.push(observation);
+            
+            hideAddObservationModal();
+            renderObservations();
+            showToast('Observation saved ✅');
+        }
+
+        function renderObservations() {
+            const observationsList = document.getElementById('observationsList');
+            
+            if (appState.currentObservations.length === 0) {
+                observationsList.innerHTML = `
+                    <div class="text-center text-gray-400 py-8">
+                        <p>No observations added yet</p>
+                        <p class="text-sm">Click "Add Observation" to get started</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const categoryColors = {
+                safety: 'bg-red-500',
+                quality: 'bg-blue-500',
+                productivity: 'bg-green-500',
+                waste: 'bg-yellow-500'
+            };
+
+            observationsList.innerHTML = appState.currentObservations.map(obs => `
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <div class="flex items-start justify-between mb-2">
+                        <span class="inline-block px-2 py-1 rounded-full text-xs font-medium text-white ${categoryColors[obs.category]}">
+                            ${obs.category.charAt(0).toUpperCase() + obs.category.slice(1)}
+                        </span>
+                        <span class="text-xs text-gray-400">${getTimeAgo(obs.timestamp)}</span>
+                    </div>
+                    <p class="text-sm mb-2">${obs.notes}</p>
+                    <div class="flex items-center gap-2 text-xs text-gray-400">
+                        ${obs.file ? `<span class="flex items-center gap-1">📎 ${obs.file}</span>` : ''}
+                        ${obs.actionItem ? '<span class="bg-primary text-white px-2 py-1 rounded-full">Action Item</span>' : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Walk Summary Functions
+        function showEndWalkSummary() {
+            const passed = appState.currentWalk.checklist.filter(item => item.status === 'pass').length;
+            const total = appState.currentWalk.checklist.length;
+            const observations = appState.currentObservations.length;
+            const actionItems = appState.currentObservations.filter(obs => obs.actionItem).length;
+
+            document.getElementById('summaryChecklistPassed').textContent = `${passed}/${total}`;
+            document.getElementById('summaryObservations').textContent = observations;
+            document.getElementById('summaryActionItems').textContent = actionItems;
+
+            showModal('walkSummaryModal');
+        }
+
+        function finishWalk() {
+            const passed = appState.currentWalk.checklist.filter(item => item.status === 'pass').length;
+            const total = appState.currentWalk.checklist.length;
+            const observations = appState.currentObservations.length;
+
+            const completedWalk = {
+                id: appState.currentWalk.id,
+                title: appState.currentWalk.title,
+                template: appState.currentWalk.template,
+                date: appState.currentWalk.startTime,
+                status: 'completed',
+                observations: observations,
+                checklistPassed: passed,
+                checklistTotal: total
+            };
+
+            appState.walks.unshift(completedWalk);
+            appState.currentWalk = null;
+            appState.currentObservations = [];
+
+            hideModal('walkSummaryModal');
+            showScreen('walkManagementScreen');
+            renderWalksList();
+            showToast('Walk completed successfully!');
+        }
+
+        // Search functionality
+        document.getElementById('searchWalks').addEventListener('input', renderWalksList);
+
+        // Initialize App
+        function initApp() {
+            updateClock();
+            setInterval(updateClock, 1000);
+            renderWalksList();
+            showScreen('walkManagementScreen');
+        }
+
+        // Start the app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+
+    <style>
+        .screen {
+            display: none;
+        }
+        
+        .screen.active {
+            display: block;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 50;
+        }
+        
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        
+        .modal-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.75);
+        }
+        
+        .modal-content {
+            background-color: #1f2937;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            width: 100%;
+            max-width: 28rem;
+            position: relative;
+            z-index: 10;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .toast {
+            position: fixed;
+            top: 5rem;
+            right: 1rem;
+            background-color: #1f2937;
+            color: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            transform: translateX(100%);
+            transition: transform 0.3s ease-in-out;
+            z-index: 60;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+        
+        @media (max-width: 640px) {
+            .modal-content {
+                margin: 1rem;
+                max-width: calc(100% - 2rem);
+            }
+            
+            .toast {
+                right: 1rem;
+                left: 1rem;
+                transform: translateY(-100%);
+            }
+            
+            .toast.show {
+                transform: translateY(0);
+            }
+        }
+    </style>
+</body>
+</html>
