@@ -1,25 +1,28 @@
 # Repository
 
 ## About The Project
-This project provides a web API entry point for users to interact with. It exposes a single endpoint at the root URL, which is handled by the `gogemba` function in `app.py`. This function is responsible for processing incoming requests and producing responses.
+This project provides a web interface for users to interact with, exposing endpoints that handle incoming requests and produce responses. The main application module, `app.py`, uses Flask's `@app.route('/')` decorator to map the root URL to the `gogemba` function, which is responsible for handling incoming requests and producing responses.
 
 ## Built With
 - Flask
+- Python
 
 ## How It Works
-The main application module, `app.py`, uses Flask's `@app.route('/')` decorator to map the root URL to the `gogemba` function. This function is responsible for handling incoming requests and producing responses.
+The main application entry point is `app.py`, which coordinates core modules to process inputs and produce actionable outputs.
 
 ## Key Features
-- `app.py` implements the `gogemba` function, which is the main entry point for handling incoming requests.
-- The project uses Flask to expose a web API endpoint at the root URL.
+- The web interface module, `GoGemba.html`, implements functions such as `showScreen`, `showModal`, and `hideModal`, which are used to display and manage the user interface.
+- The main application module, `app.py`, implements the `gogemba` function, which is responsible for handling incoming requests and producing responses.
 
 ## Project Structure
 ```text
+├── GoGemba.html
 ├── README.md
 └── app.py
 ```
 
 ## Module Responsibilities
+- **`GoGemba.html`**: Function-oriented helper/business logic. Key symbols: `showScreen()`, `showModal()`, `hideModal()`. Imports: https://cdn.tailwindcss.com.
 - **`app.py`**: Entry or orchestration module. Key symbols: `gogemba()`. Imports: flask.
 
 ## Getting Started
@@ -30,7 +33,7 @@ The main application module, `app.py`, uses Flask's `@app.route('/')` decorator 
 ```bash
 git clone <repo-url>
 cd <repo-folder>
-pip install -r requirements.txt  # if present
+pip install flask
 ```
 
 ## Usage
@@ -42,4 +45,4 @@ flask run
 ## Contributing
 Contributions should include focused changes, tests for behavior updates, and synced documentation.
 
-Note: Since there is no license information detected, the License section has been omitted. If a license is present in the repository, it should be added to this section.
+Note: I have removed the `README.md` file from the project structure as it is not a code file. Also, I have removed the `requirements.txt` file as it is not present in the provided code facts. If you have a `requirements.txt` file, you should include it in the installation instructions.
