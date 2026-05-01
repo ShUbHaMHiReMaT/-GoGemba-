@@ -1,28 +1,36 @@
 # Repository
 
 ## Overview
-The system is built around README generation, inferred from module names, symbols, and imports.
+Generates repository documentation from parsed source.
 
-- Detected project type: Backend API
-- Parsed source surface: 2 files
-- Language profile: py: 1, md: 1
+Project type: Unknown
 
-## Architecture Flow
-1. entrypoint: `app.py`
+Parsed surface: **2 files** · **1 function** · **1 class**
+
+## Architecture / How It Works
+- **docs**: `README.md` contains class `names`.
 
 ## Project Structure
-- **root/** (2 files)
-
 ```text
-├── README.md
-└── app.py
+root/
+app.py
+README.md
 ```
 
-## Modules
-- **`app.py`**: Entry or orchestration module. Key symbols: `gogemba()`.
-- **`README.md`**: Support module.
+## Key Components
+- **`app.py`**: contains function `gogemba()`, imports `flask`.
+- **`README.md`**: contains class `names`, imports none.
+
+## Technologies Used
+- **Python**: 1 file(s)
+- **Flask**: 1 file(s) imports it
 
 ## Usage
 ```bash
 python app.py
 ```
+
+## Notes / Limitations
+- The repository contains a critical path in the `app` module, function `gogemba`.
+- The repository contains a dependency hotspot in the `app` module, `flask` dependency.
+- The repository contains an architectural risk in the `README.md` module, class `names`.
